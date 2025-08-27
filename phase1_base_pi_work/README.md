@@ -3,7 +3,7 @@
 This directory contains the initial code and documentation for setting up the Raspberry Pi and its peripherals. The main objective of this phase is to establish a working environment for image capture, which is the foundational step for our AI waste classification project.
 
 <div align="center">
-  <img src="./prototype.jpg" alt="Prototype Board">
+  <img src="./ollama-pi.png" width="500" height="500" alt="Ollama Tinkerer">
 </div>
 
 -----
@@ -12,6 +12,9 @@ This directory contains the initial code and documentation for setting up the Ra
 
 This project utilizes a variety of components connected to a Raspberry Pi to function as a visual classifier. The following list details the hardware used, along with the specific GPIO pin configurations for each.
 
+<div align="center">
+  <img src="./prototype.jpg" alt="Prototype Board">
+</div>
 
 ### Components
 

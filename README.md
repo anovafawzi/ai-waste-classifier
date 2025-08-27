@@ -1,7 +1,7 @@
 # Waste Classification AI on Raspberry Pi (Overkill AI Series #1)
 
 <div align="center">
-  <img src="./rpi-garbage-truck-comic.png" width="500" height="500" alt="Raspberry Pi Garbage Truck">
+  <img src="./ollama-pi-garbage-truck.png" width="500" height="500" alt="Raspberry Pi Garbage Truck">
 </div>
 
 This repository documents the evolution of a personal project focused on building an AI-powered waste classification system using a **Raspberry Pi**. The goal is to capture an image of a waste item with a connected camera, send it to a trained AI model, and receive a classification of the item as **rubbish, organics, recyclable, or ecodrop**.
