@@ -1,12 +1,8 @@
 # Waste Classification AI on Raspberry Pi (Overkill AI Series #1)
 
-```
-    _    ___  __        __        _          ____ _               _  __ _           
-   / \  |_ _| \ \      / /_ _ ___| |_ ___   / ___| | __ _ ___ ___(_)/ _(_) ___ _ __ 
-  / _ \  | |   \ \ /\ / / _` / __| __/ _ \ | |   | |/ _` / __/ __| | |_| |/ _ \ '__|
- / ___ \ | |    \ V  V / (_| \__ \ ||  __/ | |___| | (_| \__ \__ \ |  _| |  __/ |   
-/_/   \_\___|    \_/\_/ \__,_|___/\__\___|  \____|_|\__,_|___/___/_|_| |_|\___|_|   
-```
+<div align="center">
+  <img src="./rpi-garbage-truck-comic.png" width="500" height="500" alt="Raspberry Pi Garbage Truck">
+</div>
 
 This repository documents the evolution of a personal project focused on building an AI-powered waste classification system using a **Raspberry Pi**. The goal is to capture an image of a waste item with a connected camera, send it to a trained AI model, and receive a classification of the item as **rubbish, organics, recyclable, or ecodrop**.
 
@@ -28,19 +24,11 @@ The initial phase, located in the `phase1_base_pi_work` folder, covers the found
 
 The next phase, located in the `phase2_connect_llm` folder, this phase represents the first major leap from a simple image capture system to an intelligent classifier by leveraging artificial intelligence for classification. The core idea is to send the captured image to a local Vision LLM (Large Language Model), which is an AI model capable of understanding and processing both text and images.
 
-The primary challenge in this phase is not just connecting to the model but also effectively communicating with it. This is where Prompt Engineering becomes critical. Instead of just sending the image, you craft a specific and detailed prompt to guide the AI's response. For example, a basic prompt might be "What is in this picture?", while a more engineered prompt would be "Analyze the object in this image. Is it 'rubbish', 'organics', 'recyclable', or 'ecodrop'? Respond with only one of those four categories." This process of refining the prompt helps to get a more accurate and structured output from the model, even with a basic setup.
-
-This phase is about exploring the capabilities and limitations of a generic, pre-trained Vision LLM for a specific classification task and learning how to influence its output through careful instruction.
-
   * **[Link to Phase 2 README](/phase2_connect_llm/README.md)**
 
 ### 3\. Phase 3: Optimizing the result by using RAG (Retrieval Augmented Generation) in local vector database (next)
 
 The next phase, located in the `phase3_rag_evolution` folder, covers getting more accurate data by utilizing RAG by having a local knowledge base that stored inside vector database. Building on the foundation of Phase 2, this phase aims to address the potential inaccuracies and hallucinations of a generic Vision LLM. While a vision LLM can "see" and "describe" an image, it may lack the specific, nuanced knowledge required for precise waste classification. For example, it might not know the local recycling rules or the difference between two similar-looking items. So I'll be retrieving the knowledge from the local [city waste management website](https://ccc.govt.nz/services/rubbish-and-recycling/lookupitem).
-
-This is where Retrieval Augmented Generation (RAG) comes into play. The RAG system works by giving the AI access to a private, curated knowledge base. In this project, this knowledge base would contain specific information about waste items, their categories, and perhaps local rules. This information is stored and indexed efficiently in a local Vector Database. When a new image is captured, the system first retrieves the most relevant information from this database (the "Retrieval" part) and then sends both the image and this retrieved information to the Vision LLM.
-
-This process essentially "augments" the AI's general knowledge with specific, accurate data, leading to a much more reliable and context-aware classification. This phase is crucial for moving from a "best guess" system to a more dependable and accurate classifier.
 
   * **[Link to Phase 3 README](/phase3_rag_evolution/README.md)**
 

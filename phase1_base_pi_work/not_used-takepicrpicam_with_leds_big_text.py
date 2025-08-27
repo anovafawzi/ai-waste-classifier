@@ -8,6 +8,7 @@ from threading import Thread
 from gpiozero import Button, OutputDevice, LED
 from signal import pause
 import random
+import textwrap
 
 # Luma.core.render is needed for the canvas function
 from luma.core.render import canvas
@@ -21,6 +22,7 @@ from luma.core.legacy.font import proportional, LCD_FONT
 picam2 = None
 camera_running = False
 main_loop_thread = None
+led_thread = None
 
 # Define the physical GPIO pins for the buttons.
 # We are now using gpiozero, which simplifies button handling.
@@ -33,6 +35,7 @@ CAPTURE_BUTTON_PIN = 26
 RED_LED_PIN = 22
 YELLOW_LED_PIN = 27
 GREEN_LED_PIN = 17
+BLUE_LED_PIN = 6
 
 # -----------------------------------------------------------------------------
 # Backlight and Display Setup
@@ -66,6 +69,7 @@ capture_button = Button(CAPTURE_BUTTON_PIN)
 red_led = LED(RED_LED_PIN)
 yellow_led = LED(YELLOW_LED_PIN)
 green_led = LED(GREEN_LED_PIN)
+blue_led = LED(BLUE_LED_PIN)
 
 # -----------------------------------------------------------------------------
 # Helper Functions
@@ -75,31 +79,74 @@ def turn_off_all_leds():
     red_led.off()
     yellow_led.off()
     green_led.off()
+    blue_led.off()
 
 def display_centered_message(message, duration=3):
-    """Display a centered message on the screen for a specified duration"""
+    """Display a centered message on the screen with bigger text that can span multiple lines"""
     # Create a blank image to draw the message on
     message_image = Image.new('RGB', (device.width, device.height), "black")
     draw = ImageDraw.Draw(message_image)
 
-    # Load a Pillow font for drawing the text
+    # Load a larger font for drawing the text
     try:
-        # Use a system font if available, otherwise fall back to the default
-        font = ImageFont.truetype("arial.ttf", 20)
+        # Try to use a system font with larger size
+        font = ImageFont.truetype("arial.ttf", 32)
     except IOError:
-        font = ImageFont.load_default()
+        try:
+            # Try alternative font names
+            font = ImageFont.truetype("DejaVuSans.ttf", 32)
+        except IOError:
+            try:
+                # Try another common font
+                font = ImageFont.truetype("LiberationSans-Regular.ttf", 32)
+            except IOError:
+                # Fall back to default font (will be smaller)
+                font = ImageFont.load_default()
 
-    # Get the dimensions of the text to be drawn using the selected font
-    text_bbox = draw.textbbox((0, 0), message, font=font)
-    text_width = text_bbox[2] - text_bbox[0]
-    text_height = text_bbox[3] - text_bbox[1]
+    # Wrap text to fit the screen width
+    # Estimate characters per line based on screen width and font size
+    chars_per_line = device.width // 16  # Rough estimate for 32pt font
+    wrapped_lines = textwrap.wrap(message, width=chars_per_line)
     
-    # Calculate the position to draw the text for perfect centering
-    x_pos = (device.width - text_width) // 2
-    y_pos = (device.height - text_height) // 2
+    # If wrapping results in too many lines, try with smaller font
+    if len(wrapped_lines) > 6:  # Too many lines for screen
+        try:
+            font = ImageFont.truetype("arial.ttf", 24)
+        except IOError:
+            try:
+                font = ImageFont.truetype("DejaVuSans.ttf", 24)
+            except IOError:
+                font = ImageFont.load_default()
+        
+        chars_per_line = device.width // 12  # Adjust for smaller font
+        wrapped_lines = textwrap.wrap(message, width=chars_per_line)
 
-    # Draw the text on the image
-    draw.text((x_pos, y_pos), message, fill="white", font=font)
+    # Calculate total text height
+    line_height = 0
+    for line in wrapped_lines:
+        text_bbox = draw.textbbox((0, 0), line, font=font)
+        line_height = max(line_height, text_bbox[3] - text_bbox[1])
+    
+    total_text_height = len(wrapped_lines) * line_height
+    
+    # Calculate starting Y position to center all lines vertically
+    start_y = (device.height - total_text_height) // 2
+    
+    # Draw each line centered horizontally
+    current_y = start_y
+    for line in wrapped_lines:
+        # Get the dimensions of the current line
+        text_bbox = draw.textbbox((0, 0), line, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        
+        # Calculate the position to draw the text for horizontal centering
+        x_pos = (device.width - text_width) // 2
+        
+        # Draw the text on the image
+        draw.text((x_pos, current_y), line, fill="white", font=font)
+        
+        # Move to next line
+        current_y += line_height
     
     # Display the message on the screen
     device.display(message_image)
@@ -160,14 +207,14 @@ def start_camera_on_press():
     """
     global main_loop_thread, camera_running
 
-    if not camera_running:
+    if not camera_running or camera_running == "processing":
         print(f"Start button pressed on GPIO {START_BUTTON_PIN}. Starting camera feed...")
         
         # Turn off all LEDs immediately when starting camera
         turn_off_all_leds()
         
-        # Display startup message for 3 seconds
-        display_centered_message("Turning on camera, take a picture of your waste with blue button...", 3)
+        # Display startup message for 3 seconds with bigger text
+        display_centered_message("Camera Starting! Take a picture of your waste with the capture button", 3)
         
         # Start the camera loop in a new thread.
         main_loop_thread = Thread(target=camera_feed_loop)
@@ -187,44 +234,127 @@ def start_camera_on_press():
         device.clear()
 
 
+def simulate_api_call():
+    """Simulate API call for waste classification"""
+    # TODO: Replace this with actual API call
+    time.sleep(3)  # Simulate processing time
+    # Simulate a random waste type number between 1 and 4.
+    result_number = random.randint(1, 4)
+    results = {
+        1: "Rubbish",
+        2: "Recyclable",
+        3: "Organics",
+        4: "Ecowaste"
+    }
+    result_name = results.get(result_number, "Unknown")
+    return result_name, result_number
+
+def blink_leds_during_processing():
+    """Blink LEDs in sequence during API processing"""
+    leds = [blue_led, red_led, yellow_led, green_led]
+    led_index = 0
+    
+    while camera_running == "processing":
+        # Turn off all LEDs
+        turn_off_all_leds()
+        # Turn on current LED
+        leds[led_index].on()
+        time.sleep(0.3)
+        # Move to next LED
+        led_index = (led_index + 1) % len(leds)
+        
+def turn_on_led_by_waste_type(wastetype):
+    """
+    Turns on a specific LED based on the waste type number.
+
+    Args:
+        wastetype (int): The waste type number (1 for red, 2 for yellow, etc.).
+                         1: Rubbish (Red)
+                         2: Recyclable (Yellow)
+                         3: Organics (Green)
+                         4: Ecowaste (Blue)
+    """
+    # First, turn off all LEDs to ensure only one is lit at a time.
+    turn_off_all_leds()
+
+    # Check the waste type number and turn on the corresponding LED.
+    if wastetype == 1:
+        print("Activating Red LED for Rubbish.")
+        red_led.on()
+    elif wastetype == 2:
+        print("Activating Yellow LED for Recyclable.")
+        yellow_led.on()
+    elif wastetype == 3:
+        print("Activating Green LED for Organics.")
+        green_led.on()
+    elif wastetype == 4:
+        print("Activating Blue LED for Ecowaste.")
+        blue_led.on()
+    else:
+        print(f"Warning: Unknown waste type number: {wastetype}. No LED will be turned on.")
+
 def capture_and_save_on_press():
     """
     Callback function to take a single picture and save it.
     This function is triggered by the gpiozero event.
     """
-    global picam2
+    global picam2, camera_running, led_thread
     if picam2 and camera_running:
         try:
             print(f"Capture button pressed on GPIO {CAPTURE_BUTTON_PIN}. Capturing image...")
-            # Capture a high-resolution still image.
+            
+            # Capture a high-resolution still image from the running preview.
             filename = f"image_{int(time.time())}.jpg"
             picam2.capture_file(filename)
             print(f"Image saved as {filename}")
 
-            # Display confirmation message for 2 seconds
-            display_centered_message("Waste captured!", 2)
+            # Stop the camera feed now that the capture is complete.
+            camera_running = False
+            if main_loop_thread and main_loop_thread.is_alive():
+                main_loop_thread.join()
+
+            # Display processing message
+            display_centered_message("Image captured, classifying waste...", 1)
             
-            # Randomly select and turn on one LED for 3 seconds
-            leds = [red_led, yellow_led, green_led]
-            selected_led = random.choice(leds)
-            selected_led.on()
+            # Set processing state and start LED blinking
+            camera_running = "processing"
+            led_thread = Thread(target=blink_leds_during_processing)
+            led_thread.daemon = True
+            led_thread.start()
             
-            # Keep the LED on for 3 seconds (unless camera is restarted)
-            led_start_time = time.time()
-            while time.time() - led_start_time < 3:
-                if not camera_running:  # If camera is stopped, turn off LED immediately
-                    selected_led.off()
-                    break
-                time.sleep(0.1)  # Small delay to check camera status frequently
-            else:
-                # Turn off the LED after 3 seconds if camera is still running
-                selected_led.off()
+            try:
+                # Simulate API call (replace with actual API call)
+                result_name, result_number = simulate_api_call()
+                
+                # Stop LED blinking and wait for thread to finish
+                camera_running = False
+                if led_thread and led_thread.is_alive():
+                    led_thread.join(timeout=1)
+                
+                # Now that the result is back, turn on the correct LED
+                turn_on_led_by_waste_type(result_number)
+                
+                # Display success message
+                display_centered_message(f"Classification complete! {result_name}. Press start to classify another item", 5)
+                
+            except Exception as api_error:
+                # Stop LED blinking and wait for thread to finish
+                camera_running = False
+                if led_thread and led_thread.is_alive():
+                    led_thread.join(timeout=1)
+                turn_off_all_leds()
+                
+                # Display error message
+                display_centered_message("Classification failed. Press start to try again", 3)
+                print(f"API call failed: {api_error}")
             
         except Exception as e:
+            camera_running = False
+            turn_off_all_leds()
             print(f"Failed to capture image: {e}")
     else:
         print(f"Capture button pressed on GPIO {CAPTURE_BUTTON_PIN}. Cannot capture. Camera is not running.")
-
+        
 # -----------------------------------------------------------------------------
 # Main Program
 # -----------------------------------------------------------------------------

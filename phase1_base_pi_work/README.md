@@ -59,7 +59,7 @@ The components are connected to the Raspberry Pi's GPIO pins as follows:
 
 ## Source Code
 
-The primary Python script for this phase is `takepicrpicam_with_leds.py`. This script handles the following functionalities:
+The primary Python script for this phase is `takepicrpicam.py`. This script handles the following functionalities:
 
   - Initializing and controlling the Raspberry Pi camera module.
   - Taking a picture with the camera.
